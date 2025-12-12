@@ -1,108 +1,206 @@
-📡 Machine Learning Network Intrusion Detection System (IDS)
-A full ML-powered Intrusion Detection System that analyzes Windows security logs, 
-PCAP network captures, 
-and real-time packet flows to detect anomalies using an Isolation Forest model.
+📡 Machine Learning–Based Network Anomaly Detection (Prototype IDS)
 
-This project includes:
-  🔍 Log ingestion + feature engineering
-  📦 PCAP flow extraction via Scapy
-  🤖 Machine learning anomaly detection
-  🛰️ Real-time network monitoring engine
-  💻 Command-line interface (anomaly-detect)
-  📊 Auto-generated HTML anomaly reports
-  🚨 Live anomaly scoring from packet captures
----------
-🚀 Features
-1. Log Preprocessing
-  Parses Windows Security Event Logs (4624, 4625, 4688)
-  Extracts:
-    Failed logins
-    Successful logins
-    User/IP correlations
-   Process execution patterns
-Output → logs.pkl
+This repository contains a prototype machine learning–based intrusion detection system (IDS) designed to analyze Windows Security Event Logs and network flow data extracted from PCAP files. The system applies unsupervised anomaly detection (Isolation Forest) to identify unusual authentication and network behavior.
+
+The goal of this project is to explore how log-based and flow-based features can be engineered, combined, and operationalized into a practical detection pipeline, rather than to provide a production-ready IDS.
+
+----
+
+🔍 Project Motivation
+
+Traditional IDS tools rely heavily on signatures and static rules. This project explores whether unsupervised machine learning can help surface anomalous behavior in environments where labeled attack data is limited or unavailable.
+
+Key objectives:
+
+Work with real security-relevant signals (Windows event IDs, network flows)
+
+Engineer interpretable features from logs and PCAPs
+
+Apply an anomaly detection model suitable for unlabeled data
+
+Package the pipeline into a usable command-line tool
+
+Evaluate how retraining affects anomaly rates and false positives
+
+----
+
+⚙️ Current Capabilities
+1. Windows Security Log Processing
+
+Parses Windows Security logs (CSV format) focusing on:
+
+4624 – Successful logon
+
+4625 – Failed logon
+
+4688 – Process creation
+
+Extracted features include:
+
+Failed login counts by IP
+
+Successful login activity
+
+User/IP associations
+
+Process execution frequency
+
+Output:
+
+data/processed/logs.pkl
 
 2. PCAP Flow Feature Extraction
-Using Scapy:
-  src / dst IP
-  protocol
-  packet count
-  byte count
-  flow duration
-  interarrival times
-  SYN / ACK flag counts
-Output → pcap_features.csv
 
-3. Feature Builder
-Merges log + network features into one dataset:
-Output → features.csv
+Processes PCAP / PCAPNG files and aggregates packets into network flows.
 
-4. Machine Learning Model
-Trains an Isolation Forest on engineered features.
-Outputs:
+Flow-level features include:
+
+Source and destination IP
+
+Protocol and ports
+
+Packet count
+
+Byte count
+
+Flow duration
+
+Average interarrival time
+
+TCP SYN / ACK flag counts
+
+PCAP parsing is implemented using PyShark (tshark backend) to support large captures efficiently.
+
+Output:
+
+data/processed/pcap_features.csv
+
+3. Feature Engineering & Merging
+
+Log-based and network-based features are merged into a unified dataset suitable for machine learning.
+
+Output:
+
+data/processed/features.csv
+
+4. Anomaly Detection Model
+
+An Isolation Forest model is trained on the engineered features to assign:
+
+An anomaly score (continuous)
+
+A binary prediction (normal / anomalous)
+
+The model is retrained as needed to reflect changes in baseline behavior (e.g., new network captures).
+
+Model artifacts:
+
 model_outputs/iforest.pkl
 model_outputs/scaler.pkl
 
-5. CLI Tool: anomaly-detect
+5. Command-Line Interface
+
+The project provides a CLI tool, anomaly-detect, which orchestrates the pipeline.
+
 Available commands:
-anomaly-detect run          # full pipeline (logs + pcap + model)
-anomaly-detect logs         # process raw logs
-anomaly-detect pcap         # extract pcap features
-anomaly-detect features     # merge features
-anomaly-detect predict      # model predictions
-anomaly-detect live         # REAL-TIME CAPTURE MODE
 
-⭐ 6. Real-Time Packet Capture Mode
-anomaly-detect live --iface en0
-Features:
-  Captures packets using Scapy sniff()
-  Builds flows on the fly
-  Applies ML anomaly scoring
-  Streams results to terminal
-  Logs all events to:
-    live_capture_log.csv
-Example output:
-  Flow ended: ('192.168.4.81', '142.251.111.138', 6, 59339, 443)
-  Status: normal
-  Anomaly Score: -0.472
+anomaly-detect logs       # Process raw Windows logs
+anomaly-detect pcap       # Extract PCAP flow features
+anomaly-detect features   # Merge features
+anomaly-detect predict    # Train model and generate predictions
+anomaly-detect live       # Live packet capture + anomaly scoring
 
-📊 7. Auto-Generated HTML Report
-Uses Jinja2 templating to build a professional incident report:
-  reports/anomaly_report.html
-🔧 Tech Stack
-  Python 3
-  Scapy
-  Pandas
-  NumPy
-  Scikit-Learn
-  Click (CLI)
-  Jinja2 (reporting)
-  Streamlit (dashboard, optional add-on)
+6. Live Capture Mode (Experimental)
 
- 🗂 Project Structure
-├── anomaly_detector/      # Python package (CLI + live capture)
-├── data/                  # raw + processed data
-├── model_outputs/         # trained ML models + scaler
-├── reports/               # auto-generated HTML reports
-├── src/                   # preprocessing + modeling code
-├── setup.py               # pip-installable package
-└── README.md
+A real-time capture mode monitors live network traffic using Scapy, aggregates packets into flows, and applies the trained Isolation Forest model.
 
-▶ Running the Pipeline
-Install
-  pip install -e .
-Run the full pipeline
-  anomaly-detect run
-Real-time monitoring
-  anomaly-detect live --iface en0
+Live mode:
 
-📈 Future Enhancements
-  Live Streamlit dashboard (real-time anomaly visualization)
-  MITRE ATT&CK mapping of anomalies
-  Slack / Discord alerting
-  PCAP extraction of anomalous flows
-  Threat intelligence enrichment (IP reputation lookups
+Builds flows incrementally
 
-🧑‍💻 Author
+Scores completed flows
+
+Outputs anomaly scores to terminal and CSV logs
+
+This mode is intended for experimentation and learning, not continuous production deployment.
+
+7. Reporting
+
+An HTML anomaly report can be generated using Jinja2 templates to summarize detected anomalies.
+
+Output:
+
+reports/anomaly_report.html
+
+----
+
+🧠 Model Evaluation & Observations
+
+The model is unsupervised, meaning no labeled attack data is required.
+
+Retraining the model on a recent baseline capture significantly reduced false positives in live testing.
+
+Anomaly scores form a continuous distribution and require thresholding to map to operational severity.
+
+The model is sensitive to feature scaling and environment-specific behavior.
+
+This project emphasizes understanding model behavior and limitations, not treating ML as a black box.
+
+----
+
+⚠️ Limitations
+
+No ground-truth labels; evaluation is qualitative and exploratory
+
+Isolation Forest is sensitive to feature selection and contamination assumptions
+
+Live capture mode is not optimized for high-throughput production environments
+
+Not a replacement for signature-based IDS (e.g., Suricata, Zeek)
+
+----
+
+🚀 Future Enhancements
+
+Labeled or synthetic attack datasets for quantitative evaluation
+
+Severity classification and alerting thresholds
+
+Streamlit-based visualization dashboard
+
+Integration with Zeek logs
+
+Model versioning and automated retraining workflows
+
+Unit tests for log parsing, PCAP processing, and CLI commands
+
+----
+
+🛠️ Tech Stack
+
+Python
+
+Pandas / NumPy
+
+Scikit-learn
+
+PyShark (tshark)
+
+Scapy
+
+Click (CLI)
+
+Jinja2 (reporting)
+
+----
+
+👤 Author
+
 Paul DeFrain
-Cybersecurity Analyst & ML Security Engineer
+Cybersecurity & Machine Learning Enthusiast
+
+----
+
+📌 Summary
+
+This project is intended as a learning-focused prototype demonstrating how security telemetry, feature engineering, and anomaly detection models can be combined into an operational pipeline. It prioritizes clarity, experimentation, and reproducibility over production readiness.
